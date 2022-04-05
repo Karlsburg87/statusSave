@@ -1,0 +1,73 @@
+#Schema for this file: https://cloud.google.com/build/docs/build-config-file-schema
+
+#VARIABLES ---------------
+#_PORT :The port that will be used for the webhooks on VM instances. Cloud Run defaults to 8080 
+#_HOST : Host of the DB - e.g. "free-tier5.gcp-europe-west1.cockroachlabs.cloud"
+#_USERNAME : Username for the DB
+#_PASSWORD : Password for the DB
+#_DATABASE_NAME : Name of the database as given in cockroach db control panel
+#_ROUTING_ID : Looks like a cluster ID. See: https://www.cockroachlabs.com/docs/stable/connect-to-the-database.html?filters=go#connection-parameters
+#
+#_DATABASE_URL : Full database URL - prioritised over the fragments above
+#
+#_ARTIFACT_REPO_NAME : Name of the GCP Cloud Artifacts Repo/bucket
+#_IMAGE_NAME : The name to give to the build image in the docker build step
+#_IMAGE_TAG : The version tag to give to the image in the docker build step
+#
+#_CLOUD_RUN_NAME : Name of the service when deployed on Cloud Run
+steps:
+# Build Go program using Containerfile/Dockerfile
+- name: 'docker'
+  args: 
+    - 'build'
+    - '-f'
+    - 'Dockerfile'
+    - '-t'
+    - 'europe-west2-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}'
+    - '--build-arg' 
+    - 'HOST=${_HOST}'
+    - '--build-arg' 
+    - 'USERNAME=${_USERNAME}' 
+    - '--build-arg' 
+    - 'PASSWORD=${_PASSWORD}'
+    - '--build-arg' 
+    - 'DATABASE_NAME=${_DATABASE_NAME}' 
+    - '--build-arg' 
+    - 'ROUTING_ID=${_ROUTING_ID}' 
+    - '--build-arg' 
+    - 'DATABASE_URL=${_DATABASE_URL}'
+    - '--build-arg' 
+    - 'PORT=${_PORT}'
+    - '.'
+
+    
+# Push the container image to Container Registry: https://cloud.google.com/artifact-registry/docs/repositories/create-repos?hl=en-GB#gcloud
+# Image tagging : https://cloud.google.com/artifact-registry/docs/docker/pushing-and-pulling?hl=en-GB#tag
+- name: 'docker'
+  args: 
+    - 'push'
+    - 'europe-west2-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}'
+
+# Deploy an image from Artifacts Registry to Cloud Run: https://cloud.google.com/sdk/gcloud/reference/run/deploy
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: 'gcloud'
+  args: 
+    - 'run'
+    - 'deploy'
+    - '${_CLOUD_RUN_NAME}'
+    - '--image'
+    - 'europe-west2-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPO_NAME}/${_IMAGE_NAME}:${_IMAGE_TAG}'
+    - '--region'
+    - 'europe-west2'
+    - '--platform'
+    - 'managed'
+    - '--allow-unauthenticated'
+    - '--port'
+    - '${_PORT}'
+    - '--update-env-vars'
+    - '^;^PROJECT_ID=$PROJECT_ID'
+    #https://cloud.google.com/sdk/gcloud/reference/topic/escaping
+
+
+options:
+  logging: CLOUD_LOGGING_ONLY
