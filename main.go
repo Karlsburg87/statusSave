@@ -20,19 +20,30 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	ctx := context.Background()
 
-	//calculate max connection poolsize
+	/***
+	* do database setup if not exists
+	* --- Requires single conn to defaultDB ---
+	***/
+	runDatabaseSetup(ctx, u) //all errors are fatal at startup so nothing returned
+
+	/***
+	* calculate max connection poolsize
+	* --- for main pool connection
+	***/
 	poolSize := runtime.NumCPU() * 4
 	if poolSize == 0 {
 		poolSize = 8
 	}
-
 	//add query options for conn pool
 	query := u.Query()
 	query.Set("pool_max_conns", strconv.Itoa(poolSize)) //connections = (number of cores * 4) - https://www.cockroachlabs.com/docs/stable/connection-pooling.html?filters=go
 	query.Set("sslmode", "verify-full")
 
 	u.RawQuery = query.Encode()
+
+	log.Printf("using main connection url for the worker pool: %s\n", u.String())
 
 	// Set connection pool configuration, with maximum connection pool size.
 	config, err := pgxpool.ParseConfig(u.String())
@@ -41,15 +52,16 @@ func main() {
 	}
 
 	// Create a connection pool to the database.
-	dbPool, err := pgxpool.ConnectConfig(context.Background(), config)
+	dbPool, err := pgxpool.ConnectConfig(ctx, config)
 	if err != nil {
 		log.Fatal("error connecting to the database: ", err)
 	}
 	defer dbPool.Close()
 
+	//setup tables if not exists
 	//create schema on Cockroach db if not exist
-	if err := cockroach.ExecuteTx(context.Background(), dbPool, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		if err := setupDb(context.Background(), tx); err != nil {
+	if err := cockroach.ExecuteTx(ctx, dbPool, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		if err := setupTables(ctx, tx); err != nil {
 			return fmt.Errorf("error creating schema on db : %v", err)
 		}
 		return nil
@@ -66,5 +78,6 @@ func main() {
 			log.Fatalf("could not parse port value of %s", port)
 		}
 	}
+	log.Printf("launching server on port %d", p)
 	log.Fatalln(newServer(p, dbPool).ListenAndServe())
 }

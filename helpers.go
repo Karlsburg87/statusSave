@@ -18,21 +18,34 @@ import (
 
 //setupDb does the initial 'create if not exist...' setup
 func setupDb(ctx context.Context, tx pgx.Tx) error {
+	//setup database schema
+	sql := `
+	CREATE DATABASE IF NOT EXISTS statusSentry;
+		`
+	info, err := tx.Exec(ctx, sql)
+	log.Println("setup info " + info.String())
+
+	return err
+}
+
+//setupTables does the initial 'create if not exist...' setup for the tables
+func setupTables(ctx context.Context, tx pgx.Tx) error {
 
 	//setup database schema
 	sql := `
-	CREATE IF NOT EXIST statusUpdates(
-		uid DEFAULT unique_rowid() PRIMARY KEY
+	CREATE TABLE IF NOT EXISTS statusSentry.public.statusUpdates(
+		uid INT NOT NULL DEFAULT unique_rowid(),
 		service_name STRING,
 		domain STRING,
 		message STRING,
 		raw_message STRING,
 		message_pub_timestamp TIMESTAMPTZ,
 		status_page STRING,
+		PRIMARY KEY(uid)
 		);
 
-	CREATE IF NOT EXIST pingPolls(
-		uid DEFAULT unique_rowid() PRIMARY KEY
+	CREATE TABLE IF NOT EXISTS statusSentry.public.pingPolls(
+		uid INT NOT NULL DEFAULT unique_rowid(),
 		service_name STRING,
 		domain STRING,
 		status_page STRING,
@@ -47,13 +60,41 @@ func setupDb(ctx context.Context, tx pgx.Tx) error {
 		cert_verified BOOL,
 		cert_valid_from DATE,
 		cert_valid_until DATE,
-		issuer STRING
+		issuer STRING,
+		PRIMARY KEY(uid)
 	);	
 		`
 	info, err := tx.Exec(ctx, sql)
-	log.Println(info.String())
+	log.Println("execution info : " + info.String())
 
 	return err
+}
+
+func runDatabaseSetup(ctx context.Context, targetURL *url.URL) {
+	//create single thread connection
+	setupURL := *targetURL
+	setupURL.Path = "defaultdb"
+	suq := setupURL.Query()
+	suq.Set("sslmode", "verify-full")
+	setupURL.RawQuery = suq.Encode()
+
+	log.Printf("using defaultdb connection for setup: %s\n", setupURL.String())
+
+	suConn, err := pgx.Connect(ctx, setupURL.String())
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer suConn.Close(ctx)
+
+	//create schema on Cockroach db if not exist
+	if err := cockroach.ExecuteTx(ctx, suConn, pgx.TxOptions{}, func(tx pgx.Tx) error {
+		if err := setupDb(ctx, tx); err != nil {
+			return fmt.Errorf("error creating schema on db : %v", err)
+		}
+		return nil
+	}); err != nil {
+		log.Fatalln(err)
+	}
 }
 
 //getURL constructs the database url from the envar config values
@@ -72,11 +113,12 @@ func getURL() (*url.URL, error) {
 		password := os.Getenv("PASSWORD")          //"password"
 		databaseName := os.Getenv("DATABASE_NAME") //"databaseName"
 		routingID := os.Getenv("ROUTING_ID")       //"clusterName" // https://www.cockroachlabs.com/docs/stable/connect-to-the-database.html?filters=go#connection-parameters
+		port := os.Getenv("DB_PORT")
 
 		//parse DB_URL
 		u := &url.URL{
 			Scheme:   "postgresql",
-			Host:     fmt.Sprintf("%s:%s", host, "port"),
+			Host:     fmt.Sprintf("%s:%s", host, port),
 			User:     url.UserPassword(username, password),
 			Path:     databaseName,
 			RawQuery: fmt.Sprint("options=--cluster%3D" + routingID),

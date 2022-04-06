@@ -7,6 +7,7 @@
 #_PASSWORD : Password for the DB
 #_DATABASE_NAME : Name of the database as given in cockroach db control panel
 #_ROUTING_ID : Looks like a cluster ID. See: https://www.cockroachlabs.com/docs/stable/connect-to-the-database.html?filters=go#connection-parameters
+#_DB_PORT : The port of the database
 #
 #_DATABASE_URL : Full database URL - prioritised over the fragments above
 #
@@ -38,6 +39,8 @@ steps:
     - 'DATABASE_URL=${_DATABASE_URL}'
     - '--build-arg' 
     - 'PORT=${_PORT}'
+    - '--build-arg' 
+    - 'DB_PORT=${_DB_PORT}'
     - '.'
 
     
