@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"strconv"
 
 	cockroach "github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
@@ -20,9 +21,15 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	//calculate max connection poolsize
+	poolSize := runtime.NumCPU() * 4
+	if poolSize == 0 {
+		poolSize = 8
+	}
+
 	//add query options for conn pool
 	query := u.Query()
-	query.Set("pool_max_conns", "8") //connections = (number of cores * 4) - https://www.cockroachlabs.com/docs/stable/connection-pooling.html?filters=go
+	query.Set("pool_max_conns", strconv.Itoa(poolSize)) //connections = (number of cores * 4) - https://www.cockroachlabs.com/docs/stable/connection-pooling.html?filters=go
 	query.Set("sslmode", "verify-full")
 
 	u.RawQuery = query.Encode()
