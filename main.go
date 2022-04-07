@@ -11,12 +11,13 @@ import (
 	cockroach "github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/karlsburg87/saveStatus/internal/shared"
 )
 
 func main() {
 	//sort out db connection URL
 
-	u, err := getURL()
+	u, err := shared.GetURL()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -26,7 +27,7 @@ func main() {
 	* do database setup if not exists
 	* --- Requires single conn to defaultDB ---
 	***/
-	runDatabaseSetup(ctx, u) //all errors are fatal at startup so nothing returned
+	shared.RunDatabaseSetup(ctx, u) //all errors are fatal at startup so nothing returned
 
 	/***
 	* calculate max connection poolsize
@@ -56,13 +57,13 @@ func main() {
 	if err != nil {
 		log.Fatal("error connecting to the database: ", err)
 	}
-	defer dbPool.Close()
+	//defer dbPool.Close()
 
 	//setup tables if not exists
 	//create schema on Cockroach db if not exist
 	if err := cockroach.ExecuteTx(ctx, dbPool, pgx.TxOptions{}, func(tx pgx.Tx) error {
-		if err := setupTables(ctx, tx); err != nil {
-			return fmt.Errorf("error creating schema on db : %v", err)
+		if err := shared.SetupTables(ctx, tx); err != nil {
+			return fmt.Errorf("error creating tables on db : %v", err)
 		}
 		return nil
 	}); err != nil {
@@ -79,5 +80,5 @@ func main() {
 		}
 	}
 	log.Printf("launching server on port %d", p)
-	log.Fatalln(newServer(p, dbPool).ListenAndServe())
+	log.Fatalln(shared.NewServer(ctx, p, dbPool).ListenAndServe())
 }
