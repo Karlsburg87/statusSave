@@ -190,6 +190,11 @@ func NewServer(ctx context.Context, port int, dbConnPool *pgxpool.Pool) *http.Se
 	p := fmt.Sprintf(":%d", port)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "note": "were you looking for the /receive endpoint?"}); err != nil {
+			log.Panicln(err)
+		}
+	})
+	mux.HandleFunc("/receive", func(w http.ResponseWriter, r *http.Request) {
 
 		//parse to config from pubsub
 		transport := &sentry.Transporter{}
