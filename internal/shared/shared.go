@@ -46,7 +46,7 @@ func RunDatabaseSetup(ctx context.Context, targetURL *url.URL) {
 	suq.Set("sslmode", "verify-full")
 	setupURL.RawQuery = suq.Encode()
 
-	log.Printf("using defaultdb connection for setup: %s\n", setupURL.String())
+	log.Printf("using defaultdb connection for setup: db -> %s, options -> %s\n", setupURL.Path, setupURL.RawQuery)
 
 	suConn, err := pgx.Connect(ctx, setupURL.String())
 	if err != nil {
@@ -84,19 +84,19 @@ func GetURL() (*url.URL, error) {
 		port := os.Getenv("DB_PORT")
 
 		//parse DB_URL
-		u := &url.URL{
+		u = &url.URL{
 			Scheme:   "postgresql",
 			Host:     fmt.Sprintf("%s:%s", host, port),
 			User:     url.UserPassword(username, password),
 			Path:     strings.ToLower(databaseName), //db name is always lower case in cockroachDB
 			RawQuery: fmt.Sprint("options=--cluster%3D" + routingID),
 		}
-		fmt.Println(u.String())
+		//fmt.Println(u.String())
 		if u.String() == "" {
 			return nil, fmt.Errorf("invalid db conn string - must provide DB_URL or the url elements HOST, USERNAME, PASSWORD, DATABASE_NAME, ROUTING_ID")
 		}
 	}
-	return u, err
+	return u, nil
 }
 
 //nullableString creates strings that db drivers can handle that may be null
@@ -149,8 +149,8 @@ func ISO8601Decode(iso8601 string) (rfc3339 string, err error) {
 //insertRow adds a new row to the db from the received transporter object
 func insertRow(ctx context.Context, tx pgx.Tx, t *sentry.Transporter) error {
 	//pointers deals with null issue: https://www.manniwood.com/2016_08_21/pgxfiles_08.html
-	fmt.Printf("transport in insertRow func : %+v\n", *t)
-	fmt.Printf("transport in insertRow nullable string : %+v\n", t.DisplayServiceName)
+	//fmt.Printf("transport in insertRow func : %+v\n", *t) //DEBUG
+	//fmt.Printf("transport in insertRow nullable string : %+v\n", t.DisplayServiceName) //DEBUG
 	switch t.PingResponse == nil {
 	case true:
 		pubtime, err := ISO8601Encode(t.MessagePublishedDateTime)
@@ -205,7 +205,7 @@ func NewServer(ctx context.Context, port int, dbConnPool *pgxpool.Pool) *http.Se
 			}
 			return
 		}
-		fmt.Printf("transporter : %+v", transport)
+		//fmt.Printf("transporter : %+v", transport) //DEBUG
 		//check message is valid to store
 		if transport.Message == "" && transport.PingResponse == nil {
 			log.Printf("no message: %+v\n", transport)
@@ -218,7 +218,7 @@ func NewServer(ctx context.Context, port int, dbConnPool *pgxpool.Pool) *http.Se
 
 		//commit to database
 		if err := cockroach.ExecuteTx(ctx, dbConnPool, pgx.TxOptions{}, func(tx pgx.Tx) error {
-			fmt.Printf("tx : %+v\n", tx)
+			//	fmt.Printf("tx : %+v\n", tx) //DEBUG
 			return insertRow(ctx, tx, transport)
 		}); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
