@@ -15,7 +15,7 @@ import (
 	cockroach "github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	sqlstatements "github.com/karlsburg87/saveStatus/internal/sqlStatements"
+	sqlstatements "github.com/karlsburg87/statusSave/internal/sqlStatements"
 	sentry "github.com/karlsburg87/statusSentry/pkg/configuration"
 )
 

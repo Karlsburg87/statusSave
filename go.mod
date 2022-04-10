@@ -1,4 +1,4 @@
-module github.com/karlsburg87/saveStatus
+module github.com/karlsburg87/statusSave
 
 go 1.18
 

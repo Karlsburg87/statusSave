@@ -11,7 +11,7 @@ import (
 	cockroach "github.com/cockroachdb/cockroach-go/v2/crdb/crdbpgx"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/karlsburg87/saveStatus/internal/shared"
+	"github.com/karlsburg87/statusSave/internal/shared"
 )
 
 func main() {
