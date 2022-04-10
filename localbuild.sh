@@ -17,7 +17,7 @@ if [[ -x "$(command -v podman)" ]]; then
     --build-arg PORT="${PORT}" \
     .
     
-    podman run --rm --name saveStatus -t -p 8080:"${PORT}" savestatus
+    podman run --rm --name saveStatus -it -p 8080:"${PORT}" savestatus
 
     #cleanup
     #podman image prune
@@ -36,7 +36,7 @@ elif [[ -x "$(command -v docker)" ]]; then
     --build-arg PORT="${PORT}" \
     .
     
-    docker run --rm --name saveStatus -t -p 8080:"${PORT}" savestatus
+    docker run --rm --name saveStatus -it -p 8080:"${PORT}" savestatus
 
     #cleanup
     docker image prune

@@ -1,4 +1,7 @@
-FROM docker.io/library/golang:1.18-alpine  AS build-env
+# syntax=docker/dockerfile:1
+#buildkit :  https://docs.docker.com/develop/develop-images/build_enhancements/#overriding-default-frontends
+
+FROM docker.io/library/golang:1-alpine  AS build-env
 WORKDIR /go/src/saveStatus
 
 #Let us cache modules retrieval as they do not change often.

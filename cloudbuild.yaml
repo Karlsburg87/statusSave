@@ -19,8 +19,12 @@
 steps:
 # Build Go program using Containerfile/Dockerfile
 - name: 'docker'
+  env:
+    - 'DOCKER_BUILDKIT=1'
   args: 
     - 'build'
+    - '-v'
+    - '--progress=plain'
     - '-f'
     - 'Dockerfile'
     - '-t'
