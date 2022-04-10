@@ -23,7 +23,6 @@ steps:
     - 'DOCKER_BUILDKIT=1'
   args: 
     - 'build'
-    - '-v'
     - '--progress=plain'
     - '-f'
     - 'Dockerfile'
